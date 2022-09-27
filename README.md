@@ -1,2 +1,2 @@
 # MyWeatherApp
-Created with CodeSandbox
+A Weather App by React
