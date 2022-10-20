@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 
 import styled from "@emotion/styled";
 import { ReactComponent as CloudyIcon } from "./images/day-cloudy.svg";
@@ -130,16 +130,37 @@ const WeatherApp = () => {
     possibilityOfPrecipitation: 0
   });
 
+  /* In order to defining the dependency of useEffect, use useCallback instead */
+  const fetchData = useCallback(() => {
+    /* fetchData() is used in useEffect & onClick, so take it out of useEffect */
+    const fetchingData = async () => { 
+      const data = await Promise.all([
+        fetchWeatherData(),
+        fetchForecastWeatherData()
+      ])
+      
+      const [weatherData, forecastWeatherData] = data;
+      
+      setWeatherElement((prevState) => ({
+        ...prevState,
+        ...weatherData,
+        ...forecastWeatherData
+      }))
+    }
+
+    fetchingData();
+  },[])
+
   useEffect(() => {
     console.log("execute function in useEffect");
-    fetchWeatherData();
-    fetchForecastWeatherData();
-  }, []);
-
+    fetchData();
+  }, [fetchData]); /* define dependancy when fetching data */
+  
   const fetchWeatherData = () => {
     const uri =
       "https://opendata.cwb.gov.tw/api/v1/rest/datastore/O-A0003-001?Authorization=CWB-3D7EEA69-8129-4281-8769-1DCA20D42648&locationName=%E8%87%BA%E5%8C%97";
-    fetch(uri, { method: "GET" })
+    /* return fetch directly for Promise.all data */
+    return fetch(uri, { method: "GET" })
       .then((response) => response.json())
       .then((data) => {
         const weatherElementData = data.records.location[0];
@@ -153,14 +174,23 @@ const WeatherApp = () => {
           },
           {}
         );
-
+        
+        /* --- PrevState usage ---
         setWeatherElement((prevState) => ({
           ...prevState,
           observationTime: weatherElementData.time.obsTime,
           temperature: weatherElement.TEMP,
           windSpeed: weatherElement.WDSD,
           humidity: weatherElement.HUMD
-        }));
+        }));*/
+        
+        return {
+          observationTime: weatherElementData.time.obsTime,
+          temperature: weatherElement.TEMP,
+          windSpeed: weatherElement.WDSD,
+          humidity: weatherElement.HUMD
+        }
+        
       })
       .catch((err) => {
         console.log(err);
@@ -170,7 +200,8 @@ const WeatherApp = () => {
   const fetchForecastWeatherData = () => {
     const uri =
       "https://opendata.cwb.gov.tw/api/v1/rest/datastore/F-C0032-001?Authorization=CWB-3D7EEA69-8129-4281-8769-1DCA20D42648&locationName=%E8%87%BA%E5%8C%97%E5%B8%82";
-    fetch(uri, { method: "GET" })
+    /* return fetch directly for Promise.all data */
+    return fetch(uri, { method: "GET" })
       .then((response) => response.json())
       .then((data) => {
         const forecastWeatherElementData = data.records.location[0];
@@ -180,19 +211,27 @@ const WeatherApp = () => {
               accumulator[currentValue.elementName] =
                 currentValue.time[0].parameter.parameterName;
             }
-            console.log(accumulator);
+            //console.log(accumulator);
             return accumulator;
           },
           {}
         );
-
+        
+        /* --- PrevState usage ---
         setWeatherElement((prevState) => ({
           ...prevState,
           locationName: forecastWeatherElementData.locationName,
           weatherCondition: forecastWeatherElement.Wx,
           comfortIndex: forecastWeatherElement.CI,
           possibilityOfPrecipitation: forecastWeatherElement.PoP
-        }));
+        }));*/
+        
+        return {
+          locationName: forecastWeatherElementData.locationName,
+          weatherCondition: forecastWeatherElement.Wx,
+          comfortIndex: forecastWeatherElement.CI,
+          possibilityOfPrecipitation: forecastWeatherElement.PoP
+        }
       })
       .catch((err) => {
         console.log(err);
@@ -223,7 +262,7 @@ const WeatherApp = () => {
         </Rain>
         <Humidity>
           <HumidityIcon />
-          {weatherElement.humidity * 100}%
+          {Math.round(weatherElement.humidity * 100)}%
         </Humidity>
         <Time>
           {`Last update: ` +
@@ -236,10 +275,7 @@ const WeatherApp = () => {
             }).format(new Date(weatherElement.observationTime))}
         </Time>
         <Refresh
-          onClick={() => {
-            fetchWeatherData();
-            fetchForecastWeatherData();
-          }}
+          onClick={fetchData}
         />
       </WeatherCard>
     </Container>
